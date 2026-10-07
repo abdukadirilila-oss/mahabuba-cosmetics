@@ -1,4 +1,64 @@
 <!DOCTYPE html>
-<html><head><title>Shop - Mahabuba</title></head>
-<body><h1>Mahabuba Cosmetics Shop</h1><p>Karibu! Page ipo live!</p>
-<a href="/">Rudi Home</a></body></html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mahabuba Cosmetics - Shop</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family: 'Segoe UI',sans-serif}
+body{background:#fff5f8}
+header{background:white;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:sticky;top:0;z-index:10}
+.logo{font-weight:900;color:#e91e63;font-size:22px}
+.cart{position:relative;background:#e91e63;color:white;padding:10px 18px;border-radius:25px;text-decoration:none}
+.hero{text-align:center;padding:40px 20px;background:linear-gradient(135deg,#e91e63,#f48fb1);color:white}
+.hero h1{font-size:32px;margin-bottom:10px}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:15px;padding:20px;max-width:1000px;margin:auto}
+.card{background:white;border-radius:15px;overflow:hidden;box-shadow:0 3px 15px rgba(0,0,0,0.08);text-align:center;padding-bottom:15px}
+.card .img{height:130px;background:#fce4ec;display:flex;align-items:center;justify-content:center;font-size:40px}
+.card h3{margin:10px 0 5px;font-size:14px}
+.card .price{color:#e91e63;font-weight:700}
+.card button{margin-top:8px;background:#e91e63;color:white;border:none;padding:8px 18px;border-radius:20px;cursor:pointer}
+#checkout{max-width:500px;margin:20px auto;background:white;padding:20px;border-radius:15px;display:none}
+input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
+</style>
+</head>
+<body>
+<header><div class="logo">💄 MAHABUBA</div><a href="#" class="cart" onclick="showCart()">🛒 Cart <span id="count">0</span></a><a href="/login" style="margin-left:10px;color:#e91e63">Login</a></header>
+<div class="hero"><h1>Mahabuba Cosmetics Shop</h1><p>Bidhaa Bora za Urembo - Dar es Salaam</p></div>
+<div class="products" id="products">Inapakia bidhaa...</div>
+<div id="checkout">
+<h2>Maliza Order</h2>
+<input id="cName" placeholder="Jina lako">
+<input id="cPhone" placeholder="Namba ya simu">
+<input id="cEmail" placeholder="Email (optional)">
+<div id="orderList"></div>
+<h3 id="total"></h3>
+<button onclick="placeOrder()" style="width:100%;padding:14px;background:#e91e63;color:white;border:none;border-radius:10px;font-weight:bold">Tuma Order</button>
+<p id="msg"></p>
+</div>
+<script>
+let cart=[];
+async function load(){
+let r=await fetch('/api/products'); let p=await r.json();
+if(p.length==0){products.innerHTML='<p style=text-align:center;padding:40px>Hakuna bidhaa bado. Ingia kama boss uongeze!</p>'; return}
+products.innerHTML=p.map(x=>`<div class=card><div class=img>💅</div><h3>${x.name}</h3><div class=price>${x.price} TZS</div><small>Stock: ${x.stock}</small><br><button onclick="add('${x.id}','${x.name}',${x.price})">Add to Cart</button></div>`).join('');
+}
+function add(id,name,price){cart.push({id,name,price,qty:1}); count.innerText=cart.length; alert(name+' added')}
+function showCart(){
+if(cart.length==0){alert('Cart tupu'); return}
+checkout.style.display='block';
+let tot=0; orderList.innerHTML=cart.map(c=>{tot+=c.price*c.qty; return `<div>${c.name} x${c.qty} = ${c.price*c.qty}</div>`}).join('');
+total.innerText='Jumla: '+tot+' TZS';
+window.scrollTo(0,document.body.scrollHeight);
+}
+async function placeOrder(){
+let totalCost=cart.reduce((s,c)=>s+c.price*c.qty,0);
+let items=cart.map(c=>({id:c.id,qty:c.qty}));
+let r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerName:cName.value,phone:cPhone.value,email:cEmail.value,totalCost,items})});
+let d=await r.json();
+if(d.success){msg.innerText='✅ Order imetumwa! ID:'+d.orderId; cart=[]; count.innerText=0; setTimeout(()=>location.reload(),2000)}
+else{msg.innerText='Failed'}
+}
+load();
+</script>
+</body>
+</html>
