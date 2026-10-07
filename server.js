@@ -5,11 +5,23 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
-app.use(express.static('public'));
 
-function read(f){ try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch(e){return []} }
-function save(f,d){ fs.writeFileSync(f, JSON.stringify(d,null,2)) }
+function read(f){ 
+  try{
+    let filePath = path.join(__dirname, f);
+    if(!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, '[]');
+      return [];
+    }
+    return JSON.parse(fs.readFileSync(filePath,'utf8'))
+  }catch(e){return []} 
+}
+function save(f,d){ 
+  fs.writeFileSync(path.join(__dirname, f), JSON.stringify(d,null,2)) 
+}
 
 // --- LOGIN ---
 app.post('/api/login', (req,res)=>{
@@ -75,27 +87,35 @@ app.post('/api/orders', (req,res)=>{
   orders.push(newOrder);
   save('orders.json',orders);
   
-  // Punguza stock
   let products = read('products.json');
-  req.body.items.forEach(it=>{
-    let prd = products.find(x=>x.id==it.id);
-    if(prd) prd.stock -= it.qty;
-  });
-  save('products.json',products);
-  
+  if(req.body.items){
+    req.body.items.forEach(it=>{
+      let prd = products.find(x=>x.id==it.id);
+      if(prd) prd.stock -= it.qty;
+    });
+    save('products.json',products);
+  }
   res.json({success:true, orderId:newOrder.id});
 });
-
 app.get('/api/orders', (req,res)=> res.json(read('orders.json')));
 
-// --- FRONTEND ROUTES ---
-app.get('/', (req,res)=> res.sendFile(path.join(__dirname,'shop.html')));
-app.get('/shop', (req,res)=> res.sendFile(path.join(__dirname,'shop.html')));
-app.get('/login', (req,res)=> res.sendFile(path.join(__dirname,'login.html')));
-app.get('/dashboard', (req,res)=> res.sendFile(path.join(__dirname,'dashboard.html')));
+// --- FRONTEND ROUTES - AUTO FIXED ---
+function sendOrFallback(res, file, fallback){
+  let fp = path.join(__dirname, file);
+  if(fs.existsSync(fp)) return res.sendFile(fp);
+  return res.send(fallback);
+}
 
-// --- MUHIMU KWA RENDER ---
+const shopHTML = `<!DOCTYPE html><html><head><title>Mahabuba Cosmetics</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:sans-serif;text-align:center;padding:50px} .btn{padding:15px 30px;background:#e91e63;color:white;text-decoration:none;border-radius:10px;display:inline-block;margin:10px}</style></head><body><h1>💄 Mahabuba Cosmetics</h1><p>Tovuti iko LIVE!</p><a class="btn" href="/login">Ingia Dashboard</a><a class="btn" href="/api/products">Ona Bidhaa API</a></body></html>`;
+const loginHTML = `<!DOCTYPE html><html><head><title>Login</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fce4ec} .box{background:white;padding:30px;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,0.1)} input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ccc} button{width:100%;padding:12px;background:#e91e63;color:white;border:none;border-radius:8px;cursor:pointer}</style></head><body><div class="box"><h2>Login - Mahabuba</h2><p>boss / 1234</p><input id="u" placeholder="username"><input id="p" type="password" placeholder="password"><button onclick="login()">Ingia</button><p id="msg"></p></div><script>async function login(){let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u.value,password:p.value})});let d=await r.json();if(d.success){localStorage.setItem('role',d.role);location.href='/dashboard'}else{msg.innerText='Login failed'}}<\/script></body></html>`;
+const dashHTML = `<!DOCTYPE html><html><head><title>Dashboard</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-family:sans-serif;padding:20px} .card{border:1px solid #ddd;padding:15px;border-radius:10px;margin:10px 0}</style></head><body><h1>Dashboard - Mahabuba V5.1 PRO</h1><p id="role"></p><button onclick="location.href='/shop'">Shop</button> <button onclick="load()">Load Products</button><div id="prods"></div><script>role.innerText='Role: '+(localStorage.getItem('role')||'boss');async function load(){let r=await fetch('/api/products');let d=await r.json();prods.innerHTML=d.map(p=>'<div class=card>'+p.name+' - '+p.price+' TZS - Stock:'+p.stock+'</div>').join('')} load()<\/script></body></html>`;
+
+app.get('/', (req,res)=> sendOrFallback(res,'shop.html', shopHTML));
+app.get('/shop', (req,res)=> sendOrFallback(res,'shop.html', shopHTML));
+app.get('/login', (req,res)=> sendOrFallback(res,'login.html', loginHTML));
+app.get('/dashboard', (req,res)=> sendOrFallback(res,'dashboard.html', dashHTML));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`V5.1 PRO FIXED LIVE - Button ya Wafanyakazi Imerudi Juu - http://localhost:${PORT}/login boss/1234`);
+  console.log(`LIVE - http://localhost:\${PORT}/login boss/1234`);
 });
