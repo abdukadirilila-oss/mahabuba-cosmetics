@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard V5.1 PRO - Mahabuba</title>
+<style>
+*{box-sizing:border-box;font-family:sans-serif} body{margin:0;background:#f5f5f7}
+.header{background:white;padding:15px 20px;display:flex;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.btn{padding:8px 15px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
+.btn-pink{background:#e91e63;color:white} .btn-gray{background:#eee}
+.tabs{display:flex;gap:10px;padding:15px;background:white;overflow:auto}
+.tab{padding:10px 20px;background:#eee;border-radius:20px;cursor:pointer;white-space:nowrap} .tab.active{background:#e91e63;color:white}
+.content{padding:20px;max-width:1100px;margin:auto}
+.card{background:white;padding:15px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+input,select{padding:10px;border-radius:8px;border:1px solid #ddd;margin:5px;width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px}
+table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+</style>
+</head>
+<body>
+<div class="header"><b>💄 MAHABUBA DASHBOARD V5.1 PRO</b><div><span id="roleInfo"></span> <button class="btn btn-gray" onclick="location.href='/shop'">Shop</button> <button class="btn btn-gray" onclick="localStorage.clear();location.href='/login'">Logout</button></div></div>
+<div class="tabs">
+<div class="tab active" onclick="showTab('products')">📦 Bidhaa</div>
+<div class="tab" onclick="showTab('orders')">🧾 Orders</div>
+<div class="tab" onclick="showTab('users')">👥 Wafanyakazi</div>
+<div class="tab" onclick="showTab('reports')">📊 Ripoti</div>
+</div>
+<div class="content">
+<div id="tab-products" class="tab-content">
+<div class="card"><h3>Ongeza Bidhaa Mpya</h3><input id="pName" placeholder="Jina la bidhaa"><input id="pPrice" type="number" placeholder="Bei ya kuuza"><input id="pBuy" type="number" placeholder="Bei ya kununua"><input id="pStock" type="number" placeholder="Stock"><input id="pMin" type="number" placeholder="Min Stock (alert)"><button class="btn btn-pink" onclick="addProduct()">Hifadhi Bidhaa</button></div>
+<div class="card"><h3>Bidhaa Zilizopo</h3><div id="productList"></div></div>
+</div>
+<div id="tab-orders" class="tab-content" style="display:none"><div class="card"><h3>Orders Zote</h3><div id="orderList"></div></div></div>
+<div id="tab-users" class="tab-content" style="display:none">
+<div class="card"><h3>Ongeza Mfanyakazi - HII NDIO BUTTON ULIOKUWA UNAITAFUTA!</h3><input id="uName" placeholder="Jina kamili"><input id="uUser" placeholder="Username"><input id="uPass" placeholder="Password"><input id="uPhone" placeholder="Simu"><button class="btn btn-pink" onclick="addUser()">Ongeza Mfanyakazi</button></div>
+<div class="card"><h3>Wafanyakazi</h3><div id="userList"></div></div>
+</div>
+<div id="tab-reports" class="tab-content" style="display:none"><div class="card"><h3>Ripoti ya Mauzo</h3><p>Jumla ya Orders: <b id="totalOrders">0</b></p><p>Jumla ya Mauzo: <b id="totalSales">0</b> TZS</p><p>Bidhaa karibu kuisha: <b id="lowStock">0</b></p></div></div>
+</div>
+<script>
+let role=localStorage.getItem('role')||'boss'; roleInfo.innerText='Role: '+role;
+function showTab(t){document.querySelectorAll('.tab-content').forEach(c=>c.style.display='none');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.getElementById('tab-'+t).style.display='block';event.target.classList.add('active'); if(t=='products') loadProducts(); if(t=='orders') loadOrders(); if(t=='users') loadUsers(); if(t=='reports') loadReports();}
+async function loadProducts(){let r=await fetch('/api/products');let d=await r.json();productList.innerHTML=d.length?`<table><tr><th>Jina</th><th>Bei</th><th>Stock</th><th>Action</th></tr>`+d.map(p=>`<tr><td>${p.name}</td><td>${p.price}</td><td>${p.stock} ${p.stock<=p.minStock?'<span style=color:red>⚠️</span>':''}</td><td><button onclick="delProd('${p.id}')">Futa</button></td></tr>`).join('')+`</table>`:'Hakuna bidhaa';}
+async function addProduct(){let b={name:pName.value,price:+pPrice.value,buyingPrice:+pBuy.value,stock:+pStock.value,minStock:+pMin.value}; await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); alert('Imehifadhiwa'); loadProducts(); pName.value='';}
+async function delProd(id){if(!confirm('Futa?'))return; await fetch('/api/products/'+id,{method:'DELETE'}); loadProducts();}
+async function loadUsers(){let r=await fetch('/api/users');let d=await r.json();userList.innerHTML=d.length?`<table><tr><th>Jina</th><th>Username</th><th>Simu</th><th>Action</th></tr>`+d.map(u=>`<tr><td>${u.name}</td><td>${u.username}</td><td>${u.phone}</td><td><button onclick="delUser('${u.id}')">Futa</button></td></tr>`).join('')+`</table>`:'Hakuna wafanyakazi';}
+async function addUser(){let b={name:uName.value,username:uUser.value,password:uPass.value,phone:uPhone.value}; await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}); alert('Mfanyakazi ameongezwa'); loadUsers();}
+async function delUser(id){await fetch('/api/users/'+id,{method:'DELETE'}); loadUsers();}
+async function loadOrders(){let r=await fetch('/api/orders');let d=await r.json();orderList.innerHTML=d.length?d.reverse().map(o=>`<div class=card><b>${o.customerName}</b> - ${o.phone} - ${o.total} TZS<br><small>${new Date(o.date).toLocaleString()} - ${o.status}</small><br>${o.items?.map(i=>i.id).join(', ')}</div>`).join(''):'Hakuna orders';}
+async function loadReports(){let pr=await (await fetch('/api/products')).json(); let or=await (await fetch('/api/orders')).json(); totalOrders.innerText=or.length; totalSales.innerText=or.reduce((s,o)=>s+(+o.total||0),0); lowStock.innerText=pr.filter(p=>p.stock<=p.minStock).length;}
+loadProducts();
+</script>
+</body></html>
